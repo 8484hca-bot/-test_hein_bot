@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Watch & Earn</title>
+    <style>
+        body { 
+            background-color: #121212; 
+            color: #ffffff; 
+            text-align: center; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding-top: 30px; 
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 95%;
+            max-width: 500px;
+            background: #1e1e1e;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+        }
+        h2 { 
+            color: #ffcc00; 
+            margin-bottom: 5px; 
+        }
+        p { 
+            color: #aaaaaa; 
+            font-size: 14px; 
+            margin-bottom: 20px; 
+        }
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            pointer-events: none; /* User ကို YouTube ထဲမှာ ကလစ်မနှိပ်စေချင်ရင် ထည့်ပါ (သို့) ဖျက်ပါ */
+        }
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+        #status { 
+            font-size: 18px; 
+            color: #ffcc00; 
+            margin-top: 15px; 
+            font-weight: bold;
+            background: #2a2a2a;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .timer-badge {
+            background: #ff4444;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 16px;
+            display: inline-block;
+            margin-left: 5px;
+        }
+        .warning {
+            color: #ff6666;
+            font-size: 13px;
+            margin-top: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>📺 ဗီဒီယိုကြော်ငြာ ကြည့်ရှုရန်</h2>
+        <p>🎁 ရမှတ်များရရှိရန် ဗီဒီယိုကို <strong>၁၅ စက္ကန့်</strong> ပြည့်အောင် ကြည့်ရှုပေးပါ။</p>
+
+        <!-- ဗီဒီယို Container (YouTube Embed) -->
+        <div class="video-wrapper">
+            <!-- 
+               !!! အရေးကြီး !!!
+               အောက်က VIDEO_ID ဆိုတဲ့နေရာမှာ ကိုယ်ပြချင်တဲ့ YouTube Video ID ကို အစားထိုးပါ။
+               ဥပမာ- dQw4w9WgXcQ 
+               autoplay=1 & mute=1 ကို မဖျက်ပါနဲ့ (Browser Policy ကြောင့် အသံဖွင့်ရင် Auto-play အလုပ်မလုပ်ပါ) 
+            -->
+            <iframe 
+                id="adVideo" 
+                src="https://www.youtube.com/embed/VIDEO_ID?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&showinfo=0" 
+                allow="autoplay; encrypted-media" 
+                allowfullscreen>
+            </iframe>
+        </div>
+
+        <div id="status">
+            ⏳ စက္ကန့်တွက်နေသည်... <span class="timer-badge" id="timer">15</span> စက္ကန့်
+        </div>
+        <div class="warning" id="cheatWarning">⚠️ Tab ပြောင်းထားစဉ် Timer ရပ်ထားမည်။ ဗီဒီယိုကို ဆက်ကြည့်ပေးပါ။</div>
+    </div>
+
+    <script>
+        // URL မှ User ID ဖတ်ယူခြင်း
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('user_id');
+
+        let timeLeft = 15;
+        let timerInterval = null;
+        let rewardClaimed = false; // Reward ကို ၁ ကြိမ်ပဲ ပို့ဖို့ ထိန်းချုပ်ခြင်း
+
+        const timerElement = document.getElementById('timer');
+        const statusElement = document.getElementById('status');
+        const warningElement = document.getElementById('cheatWarning');
+
+        // --- Timer Logic ---
+        function startTimer() {
+            if (timeLeft <= 0 || rewardClaimed) return;
+            
+            warningElement.style.display = 'none'; // Warning ဖျောက်
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerElement.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    claimReward();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                warningElement.style.display = 'block'; // Warning ပြ
+            }
+        }
+
+        // --- Anti-Cheat: Visibility Change Detection ---
+        document.addEventListener('visibilitychange', () => {
+            // Reward ရပြီးသားဆိုရင် ဘာမှမလုပ်ပါ
+            if (rewardClaimed || timeLeft <= 0) return;
+
+            if (document.hidden) {
+                // User က Tab ပြောင်းသွားရင် Timer ရပ်
+                pauseTimer();
+            } else {
+                // User ပြန်ရောက်လာရင် Timer ပြန်စ
+                startTimer();
+            }
+        });
+
+        // --- Reward ရယူခြင်းနှင့် Backend သို့ပို့ခြင်း ---
+        function claimReward() {
+            if (rewardClaimed) return; // ၁ ကြိမ်ထက်ပိုမပို့မိအောင်
+            rewardClaimed = true;
+
+            statusElement.innerHTML = "🔄 ရမှတ်များကို အော်တို ထည့်သွင်းပေးနေပါသည်...";
+
+            if (!userId) {
+                statusElement.innerHTML = "❌ အမှားအယွင်းရှိနေပါသည်။ (User ID မရှိပါ)";
+                return;
+            }
+
+            // ⚠️ Backend Server URL ကို ကိုယ့် Endpoint နဲ့ အစားထိုးပါ။ (ဥပမာ /earn)
+            const backendURL = "https://test-hein-bot.onrender.com/earn"; 
+            
+            fetch(backendURL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify({ 
+                    user_id: userId, 
+                    points: 10 
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    statusElement.innerHTML = "✅ ဂုဏ်ယူပါတယ်! ရမှတ် (၁၀) မှတ် အော်တို ဝင်သွားပါပြီ။";
+                    statusElement.style.color = "#4caf50";
+                } else {
+                    statusElement.innerHTML = "❌ ရမှတ်ထည့်သွင်းခြင်း မအောင်မြင်ပါ။";
+                    statusElement.style.color = "#ff4444";
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                statusElement.innerHTML = "❌ Server အခက်အခဲရှိနေပါသည်။ (အင်တာနက်စစ်ဆေးပါ)";
+                statusElement.style.color = "#ff4444";
+            });
+        }
+
+        // --- စတင်ချိန်တွင် Timer စတင်ပါ ---
+        // User က ID ပါမလာရင် သတိပေးမယ်
+        if(!userId) {
+            statusElement.innerHTML = "⚠️ User ID မပါဝင်ပါ။ Link မှားနေပါသလား။";
+            statusElement.style.color = "#ff6666";
+        } else {
+            startTimer();
+        }
+
+        // Page ပေါ်မှာ Mouse မလှုပ်ရင် / Inactive ဖြစ်ရင် Timer ရပ်တဲ့ စနစ် (Optional၊ လက်ရှိတော့ Visibility ပဲသုံးထားပါတယ်)
+    </script>
+</body>
+</html>
+                
