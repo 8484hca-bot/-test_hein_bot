@@ -1,0 +1,24 @@
+{
+  "tonconnect": {
+    "version": "2",
+    "id": "ton-withdrawal-system",
+    "name": "TON Withdrawal System",
+    "description": "Secure withdrawal system powered by TON Blockchain for Telegram Mini App",
+    "url": "https://vercel.app",
+    "icons": [
+      "https://vercel.app/ton-icon.png"
+    ],
+    "buttons": [
+      {
+        "name": "sourceCode",
+        "url": "https://github.com/8484hca-bot/-test_hein_bot"
+      }
+    ]
+  },
+  "manifest_version": "2",
+  "metadata": {
+    "icon": "https://vercel.app/ton-icon.svg",
+    "name": "TON Withdrawal",
+    "description": "TON blockchain withdrawal system with real transaction submission"
+  }
+}
