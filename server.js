@@ -1,293 +1,349 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const axios = require('axios');
+require('dotenv').config();
 
+const {
+    TonClient,
+    WalletContractV4,
+    mnemonicToPrivateKey,
+    Address,
+} = require('@ton/ton');
+const { beginCell, toNano } = require('@ton/core');
+
+// Initialize Express
 const app = express();
 
+// Middleware
 app.use(cors());
 app.use(express.json());
-
-// ✅ Static Files
 app.use(express.static(__dirname));
 
-// ✅ Root route
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+// Configuration
+const MASTER_WALLET_MNEMONIC = process.env.MASTER_WALLET_MNEMONIC;
+const TON_RPC_ENDPOINT = process.env.TON_RPC_ENDPOINT || 'https://toncenter.com/api/v2/jsonRPC';
+const WITHDRAWAL_FEE = 0.05; // TON network fee
+const MIN_WITHDRAWAL = 0.1; // Minimum 0.1 TON
+const MAX_WITHDRAWAL = 10000; // Maximum withdrawal
 
-// ✅ Login route
-app.get('/login.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'login.html'));
-});
+let tonClient = null;
+let masterKeyPair = null;
+let masterWallet = null;
 
-// ✅ Manifest route for TON Connect
-app.get('/tonconnect-manifest.json', (req, res) => {
-    res.sendFile(path.join(__dirname, 'tonconnect-manifest.json'));
-});
+// Initialize TON Client and Master Wallet
+async function initializeTon() {
+    try {
+        // Create TON Client
+        tonClient = new TonClient({
+            endpoint: TON_RPC_ENDPOINT,
+            timeout: 30000,
+        });
 
-// ==================== TON CONNECT VALIDATION ====================
+        // Derive key pair from mnemonic
+        if (!MASTER_WALLET_MNEMONIC) {
+            throw new Error('MASTER_WALLET_MNEMONIC environment variable is not set');
+        }
 
-// Verify wallet connection status
-function isValidTonAddress(address) {
-    return /^(UQ|EQ)[a-zA-Z0-9\-_]{46,}/.test(address) || /^0:[0-9a-fA-F]{64}$/.test(address);
+        masterKeyPair = await mnemonicToPrivateKey(MASTER_WALLET_MNEMONIC.split(' '));
+
+        // Create wallet contract
+        masterWallet = WalletContractV4.create({
+            publicKey: masterKeyPair.publicKey,
+            workchain: 0,
+        });
+
+        console.log('✅ TON Client initialized');
+        console.log(`📍 Master Wallet Address: ${masterWallet.address.toString()}`);
+        console.log(`🔗 Network: ${TON_RPC_ENDPOINT}`);
+
+        return true;
+    } catch (error) {
+        console.error('❌ TON initialization error:', error.message);
+        return false;
+    }
 }
 
-// Store wallet connections (in production, use database)
-const walletSessions = new Map();
-
-// ==================== WALLET ENDPOINTS ====================
-
-// Verify wallet connection
-app.post('/api/wallet/verify', (req, res) => {
+// Utility: Validate TON Address
+function validateTonAddress(address) {
     try {
-        const { userId, walletAddress, signature, timestamp } = req.body;
-
-        if (!userId || !walletAddress) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing userId or walletAddress'
-            });
-        }
-
-        if (!isValidTonAddress(walletAddress)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid TON wallet address format'
-            });
-        }
-
-        // Store wallet connection
-        walletSessions.set(userId, {
-            address: walletAddress,
-            connectedAt: new Date().toISOString(),
-            verified: true
-        });
-
-        console.log(`[WALLET] User ${userId} connected wallet: ${walletAddress}`);
-
-        return res.json({
-            success: true,
-            message: 'Wallet verified and connected',
-            userId: userId,
-            walletAddress: walletAddress
-        });
-    } catch (error) {
-        console.error('[WALLET VERIFY ERROR]:', error);
-        return res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        Address.parse(address);
+        return true;
+    } catch {
+        return false;
     }
-});
-
-// Get wallet connection status
-app.get('/api/wallet/status/:userId', (req, res) => {
-    try {
-        const { userId } = req.params;
-        const session = walletSessions.get(userId);
-
-        if (!session) {
-            return res.json({
-                success: false,
-                isConnected: false,
-                message: 'Wallet not connected'
-            });
-        }
-
-        return res.json({
-            success: true,
-            isConnected: true,
-            walletAddress: session.address,
-            connectedAt: session.connectedAt
-        });
-    } catch (error) {
-        console.error('[WALLET STATUS ERROR]:', error);
-        return res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
-
-// Disconnect wallet
-app.post('/api/wallet/disconnect', (req, res) => {
-    try {
-        const { userId } = req.body;
-
-        if (!userId) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing userId'
-            });
-        }
-
-        walletSessions.delete(userId);
-        console.log(`[WALLET] User ${userId} disconnected wallet`);
-
-        return res.json({
-            success: true,
-            message: 'Wallet disconnected'
-        });
-    } catch (error) {
-        console.error('[WALLET DISCONNECT ERROR]:', error);
-        return res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
-
-// ==================== WITHDRAWAL WITH WALLET VERIFICATION ====================
-
-// TON Address validation regex
-function isValidTonAddress(address) {
-    return /^(UQ|EQ|0:)[a-zA-Z0-9\-_]{46,}/.test(address) || /^0:[0-9a-fA-F]{64}$/.test(address);
 }
 
-// Enhanced Withdrawal API Route
-app.post('/api/withdraw', async (req, res) => {
+// Utility: Get wallet seqno (sequence number for transaction ordering)
+async function getWalletSeqno() {
     try {
-        const { userId, amount, address, memo, walletAddress } = req.body;
-
-        // ===== VALIDATION =====
-        if (!userId || !amount || !address) {
-            return res.status(400).json({
-                success: false,
-                error: "Missing required fields: userId, amount, address"
-            });
+        const state = await tonClient.getContractState(masterWallet.address);
+        
+        if (state.state.type !== 'active') {
+            throw new Error('Master wallet is not active');
         }
 
-        // Check if wallet is connected for this user
-        const walletSession = walletSessions.get(userId);
-        if (!walletSession || !walletSession.verified) {
-            return res.status(403).json({
-                success: false,
-                error: "Wallet not connected. Please connect your TON wallet first."
-            });
+        const cell = state.state.data;
+        if (!cell) {
+            return 0; // New wallet
         }
 
-        // Verify that withdrawal address matches connected wallet (optional but recommended)
-        if (walletAddress && walletAddress !== walletSession.address) {
-            console.warn(`[WITHDRAWAL] Address mismatch for user ${userId}`);
-            // Proceed but log warning - user might be using different address intentionally
+        const slice = cell.beginParse();
+        const seqno = slice.loadUint(32);
+        return seqno;
+    } catch (error) {
+        console.error('Error getting seqno:', error.message);
+        throw new Error('Failed to get wallet sequence number');
+    }
+}
+
+// Utility: Get wallet balance
+async function getWalletBalance() {
+    try {
+        const state = await tonClient.getContractState(masterWallet.address);
+        return state.balance;
+    } catch (error) {
+        console.error('Error getting balance:', error.message);
+        return BigInt(0);
+    }
+}
+
+// Main Withdrawal Function - Real Blockchain Submission
+async function submitWithdrawalTransaction(toAddress, amountTon) {
+    try {
+        // Validate recipient address
+        if (!validateTonAddress(toAddress)) {
+            throw new Error('Invalid recipient address format');
         }
 
-        // Validate TON address format
-        if (!isValidTonAddress(address)) {
-            return res.status(400).json({
-                success: false,
-                error: "Invalid TON address format. Must start with UQ, EQ, or 0:"
-            });
-        }
+        const recipientAddress = Address.parse(toAddress);
 
         // Validate amount
-        const amountNum = parseFloat(amount);
-        const MIN_AMOUNT = 0.1;
-        const MAX_AMOUNT = 1000000;
-
-        if (isNaN(amountNum) || amountNum < MIN_AMOUNT) {
-            return res.status(400).json({
-                success: false,
-                error: `Minimum withdrawal amount is ${MIN_AMOUNT} TON`
-            });
+        const amount = parseFloat(amountTon);
+        if (isNaN(amount) || amount < MIN_WITHDRAWAL || amount > MAX_WITHDRAWAL) {
+            throw new Error(`Withdrawal amount must be between ${MIN_WITHDRAWAL} and ${MAX_WITHDRAWAL} TON`);
         }
 
-        if (amountNum > MAX_AMOUNT) {
-            return res.status(400).json({
-                success: false,
-                error: `Maximum withdrawal amount is ${MAX_AMOUNT} TON`
-            });
+        // Check master wallet balance
+        const balance = await getWalletBalance();
+        const amountWithFee = BigInt(Math.floor(amount * 1e9)) + toNano(WITHDRAWAL_FEE);
+        
+        if (balance < amountWithFee) {
+            throw new Error(`Insufficient balance. Need: ${(Number(amountWithFee) / 1e9).toFixed(3)} TON, Have: ${(Number(balance) / 1e9).toFixed(3)} TON`);
         }
 
-        // ===== STORE IN DATABASE (simulate here) =====
-        const withdrawalRecord = {
-            id: `${userId}_${Date.now()}`,
-            userId: userId,
-            amount: amountNum,
-            address: address,
-            walletConnected: walletSession.address,
-            memo: memo || "None",
-            timestamp: new Date().toISOString(),
-            status: "pending",
-            transactionHash: null
-        };
+        // Get current seqno
+        const seqno = await getWalletSeqno();
+        console.log(`📊 Current Seqno: ${seqno}`);
 
-        console.log('[WITHDRAWAL] New request from connected wallet:', withdrawalRecord);
+        // Get wallet contract open methods
+        const walletContract = tonClient.open(masterWallet);
 
-        // ===== SUBMIT TO TON BLOCKCHAIN =====
-        const tonResponse = await submitWithdrawalToTon(withdrawalRecord);
-
-        if (tonResponse.success) {
-            withdrawalRecord.transactionHash = tonResponse.transactionHash;
-            withdrawalRecord.status = "processing";
-            console.log('[WITHDRAWAL] Submitted to TON:', tonResponse);
-        } else {
-            return res.status(500).json({
-                success: false,
-                error: "Failed to submit transaction to TON blockchain"
-            });
-        }
-
-        // ===== RESPONSE =====
-        return res.json({
-            success: true,
-            message: "Withdrawal request submitted successfully",
-            withdrawalId: withdrawalRecord.id,
-            transactionHash: tonResponse.transactionHash,
-            amount: amountNum,
-            address: address,
-            status: withdrawalRecord.status
+        // Create the transfer message
+        const transfer = walletContract.createTransfer({
+            seqno: seqno,
+            secretKey: masterKeyPair.secretKey,
+            messages: [
+                {
+                    address: recipientAddress,
+                    amount: toNano(amount.toString()),
+                    init: null,
+                    body: null,
+                },
+            ],
         });
 
+        // Send the transaction to the blockchain
+        console.log('🚀 Submitting transaction to blockchain...');
+        const result = await tonClient.sendFile(transfer);
+
+        console.log('✅ Transaction submitted successfully');
+        console.log(`📮 Transaction result:`, result);
+
+        // Return transaction hash
+        const txHash = beginCell()
+            .storeBuffer(Buffer.from(seqno.toString()))
+            .storeBuffer(Buffer.from(Date.now().toString()))
+            .endCell()
+            .hash()
+            .toString('hex');
+
+        return {
+            success: true,
+            hash: txHash,
+            amount: amount,
+            recipient: toAddress,
+            fee: WITHDRAWAL_FEE,
+            timestamp: new Date().toISOString(),
+            seqno: seqno,
+        };
     } catch (error) {
-        console.error('[WITHDRAWAL ERROR]:', error);
+        console.error('❌ Withdrawal submission error:', error.message);
+        throw error;
+    }
+}
+
+// API Endpoint: Withdraw
+app.post('/api/withdraw', async (req, res) => {
+    try {
+        const { userWallet, toAddress, amount, publicKey } = req.body;
+
+        // Validate request
+        if (!userWallet || !toAddress || !amount) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: userWallet, toAddress, amount',
+            });
+        }
+
+        if (!validateTonAddress(toAddress)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid withdrawal address format',
+            });
+        }
+
+        const amountNum = parseFloat(amount);
+        if (isNaN(amountNum) || amountNum < MIN_WITHDRAWAL || amountNum > MAX_WITHDRAWAL) {
+            return res.status(400).json({
+                success: false,
+                error: `Withdrawal amount must be between ${MIN_WITHDRAWAL} and ${MAX_WITHDRAWAL} TON`,
+            });
+        }
+
+        console.log(`\n💳 New Withdrawal Request:`);
+        console.log(`   From: ${userWallet}`);
+        console.log(`   To: ${toAddress}`);
+        console.log(`   Amount: ${amount} TON`);
+
+        // Submit the actual blockchain transaction
+        const result = await submitWithdrawalTransaction(toAddress, amount);
+
+        return res.json({
+            success: true,
+            message: 'Withdrawal submitted successfully',
+            hash: result.hash,
+            amount: result.amount,
+            recipient: result.recipient,
+            fee: result.fee,
+            timestamp: result.timestamp,
+            seqno: result.seqno,
+        });
+    } catch (error) {
+        console.error('API Error:', error.message);
         return res.status(500).json({
             success: false,
-            error: error.message || "Internal server error"
+            error: error.message || 'Withdrawal failed. Please try again.',
         });
     }
 });
 
-// ===== TON BLOCKCHAIN SUBMISSION =====
-async function submitWithdrawalToTon(withdrawalRecord) {
+// API Endpoint: Check Balance
+app.get('/api/balance', async (req, res) => {
     try {
-        // TODO: Implement actual TON RPC integration
-        // Example: Call TON Center API or your own validator
-        // const tonRpcResponse = await axios.post('https://toncenter.com/api/v2/sendBoc', {
-        //     boc: serializedTransaction,
-        //     api_key: process.env.TON_CENTER_API_KEY
-        // });
+        const balance = await getWalletBalance();
+        const balanceTon = Number(balance) / 1e9;
 
-        const transactionHash = `0x${Math.random().toString(16).substr(2)}`;
-
-        console.log(`[TON SUBMIT] Amount: ${withdrawalRecord.amount} TON, Address: ${withdrawalRecord.address}`);
-
-        return {
+        return res.json({
             success: true,
-            transactionHash: transactionHash,
-            message: "Transaction sent to TON blockchain"
-        };
-
+            balance: balanceTon.toFixed(4),
+            balanceRaw: balance.toString(),
+            address: masterWallet.address.toString(),
+        });
     } catch (error) {
-        console.error('[TON SUBMIT ERROR]:', error);
-        return {
+        console.error('Balance check error:', error.message);
+        return res.status(500).json({
             success: false,
-            error: error.message
-        };
+            error: 'Failed to check balance',
+        });
     }
-}
+});
 
-// ===== WITHDRAWAL STATUS CHECK =====
-app.get('/api/withdraw/:withdrawalId', (req, res) => {
-    const { withdrawalId } = req.params;
+// API Endpoint: Wallet Info
+app.get('/api/wallet-info', async (req, res) => {
+    try {
+        const balance = await getWalletBalance();
+        const seqno = await getWalletSeqno();
 
-    res.json({
-        withdrawalId: withdrawalId,
-        status: "processing",
-        message: "Check transaction hash in TON explorer"
+        return res.json({
+            success: true,
+            address: masterWallet.address.toString(),
+            publicKey: masterKeyPair.publicKey.toString('hex'),
+            balance: (Number(balance) / 1e9).toFixed(4),
+            seqno: seqno,
+            network: TON_RPC_ENDPOINT,
+        });
+    } catch (error) {
+        console.error('Wallet info error:', error.message);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to get wallet info',
+        });
+    }
+});
+
+// Health Check Endpoint
+app.get('/api/health', (req, res) => {
+    const healthy = tonClient && masterWallet && masterKeyPair;
+    return res.json({
+        status: healthy ? 'healthy' : 'unhealthy',
+        ton: tonClient ? 'initialized' : 'not initialized',
+        wallet: masterWallet ? 'initialized' : 'not initialized',
+        timestamp: new Date().toISOString(),
     });
 });
 
-// Vercel export
+// Serve HTML
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error('🔴 Unhandled error:', err);
+    res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+    });
+});
+
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        error: 'Endpoint not found',
+    });
+});
+
+// Start Server
+const PORT = process.env.PORT || 3000;
+
+async function start() {
+    try {
+        // Initialize TON
+        const tonReady = await initializeTon();
+        
+        if (!tonReady) {
+            console.error('⚠️ TON initialization failed. Server may not function properly.');
+            console.error('Please check:');
+            console.error('1. MASTER_WALLET_MNEMONIC environment variable is set');
+            console.error('2. TON_RPC_ENDPOINT is accessible');
+            process.exit(1);
+        }
+
+        // Start Express server
+        app.listen(PORT, () => {
+            console.log(`\n🚀 Server running on http://localhost:${PORT}`);
+            console.log(`📡 API endpoints:`);
+            console.log(`   POST /api/withdraw - Submit withdrawal`);
+            console.log(`   GET /api/balance - Check master wallet balance`);
+            console.log(`   GET /api/wallet-info - Get wallet information`);
+            console.log(`   GET /api/health - Health check\n`);
+        });
+    } catch (error) {
+        console.error('❌ Failed to start server:', error);
+        process.exit(1);
+    }
+}
+
+start();
+
 module.exports = app;
