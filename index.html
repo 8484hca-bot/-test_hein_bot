@@ -2,217 +2,419 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Watch & Earn</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch & Earn + Lucky Spin</title>
     <style>
-        body { 
-            background-color: #121212; 
-            color: #ffffff; 
-            text-align: center; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            padding-top: 30px; 
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-        }
-        .container {
-            width: 95%;
-            max-width: 500px;
-            background: #1e1e1e;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-        }
-        h2 { 
-            color: #ffcc00; 
-            margin-bottom: 5px; 
-        }
-        p { 
-            color: #aaaaaa; 
-            font-size: 14px; 
-            margin-bottom: 20px; 
-        }
-        .video-wrapper {
-            position: relative;
-            width: 100%;
-            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            margin-bottom: 20px;
-            pointer-events: none; /* User ကို YouTube ထဲမှာ ကလစ်မနှိပ်စေချင်ရင် ထည့်ပါ (သို့) ဖျက်ပါ */
-        }
-        .video-wrapper iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border: 0;
-        }
-        #status { 
-            font-size: 18px; 
-            color: #ffcc00; 
-            margin-top: 15px; 
-            font-weight: bold;
-            background: #2a2a2a;
-            padding: 12px;
-            border-radius: 8px;
-        }
-        .timer-badge {
-            background: #ff4444;
-            color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 16px;
-            display: inline-block;
-            margin-left: 5px;
-        }
-        .warning {
-            color: #ff6666;
-            font-size: 13px;
-            margin-top: 15px;
-            display: none;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #1a1a2e; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .container { background: #16213e; border-radius: 16px; padding: 1.5rem; width: 100%; max-width: 450px; color: #e0e0e0; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .tab-bar { display: flex; border-radius: 10px; overflow: hidden; margin-bottom: 1.5rem; }
+        .tab-btn { flex: 1; padding: 0.8rem; background: #0f3460; border: none; color: #9099b0; font-weight: 600; cursor: pointer; font-size: 1rem; transition: all 0.2s; }
+        .tab-btn.active { background: #00d4ff; color: #0a0a1a; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .status-badge { background: #00d4ff22; color: #00d4ff; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.8rem; display: inline-block; margin-bottom: 1rem; }
+        h2 { color: #ffffff; }
+        .balance-box { background: #0f3460; padding: 1rem; border-radius: 8px; font-size: 1.2rem; margin-bottom: 0.5rem; }
+        .withdraw-box { font-size: 0.8rem; color: #9099b0; margin-bottom: 1rem; }
+        .limit-box { font-size: 0.9rem; margin-bottom: 1rem; }
+        .btn-ad { width: 100%; padding: 0.9rem; background: #00d4ff; border: none; border-radius: 8px; font-weight: 600; color: #0a0a1a; cursor: pointer; font-size: 1rem; margin-bottom: 1.5rem; }
+        .btn-ad:disabled { background: #555; color: #aaa; cursor: not-allowed; }
+        .withdrawal-console, .referral-console { background: #0f3460; border-radius: 12px; padding: 1.5rem; margin-top: 1rem; color: #e0e0e0; }
+        .withdrawal-console h3, .referral-console h3 { margin-top: 0; color: #00d4ff; }
+        .sub-label { font-size: 0.8rem; color: #9099b0; margin-bottom: 0.2rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px; color: #9099b0; margin-bottom: 0.3rem; text-transform: uppercase; }
+        .form-group input { width: 100%; padding: 0.75rem 1rem; background: #16213e; border: 1px solid #1a4a8a; border-radius: 8px; color: white; font-size: 1rem; }
+        .form-group input:focus { outline: none; border-color: #00d4ff; }
+        .btn-withdraw, .btn-copy { width: 100%; padding: 0.9rem; background: #6bff9e; border: none; border-radius: 8px; font-weight: 600; color: #0a0a1a; cursor: pointer; font-size: 1rem; }
+        .btn-copy { background: #00d4ff; margin-top: 0.5rem; }
+        .debug-info { background: #0f3460; padding: 0.5rem; border-radius: 6px; font-size: 0.75rem; color: #9099b0; margin-top: 0.5rem; word-break: break-all; }
+        .referral-link { width: 100%; padding: 0.75rem; background: #16213e; border: 1px solid #1a4a8a; border-radius: 8px; color: white; margin: 0.5rem 0; }
+
+        /* Lucky Spin */
+        .wheel-box { position: relative; width: 250px; height: 250px; margin: 20px auto; }
+        .wheel { width: 100%; height: 100%; border-radius: 50%; border: 5px solid #38bdf8; background: conic-gradient(#ef4444 0deg 60deg, #f59e0b 60deg 120deg, #10b981 120deg 180deg, #3b82f6 180deg 240deg, #8b5cf6 240deg 300deg, #ec4899 300deg 360deg); transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99); position: relative; }
+        .pointer { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 30px solid #f43f5e; z-index: 10; }
+        .prize-label { position: absolute; top: 50%; left: 50%; transform-origin: center; transform: translate(-50%, -50%) rotate(var(--rotate)) translateY(-90px); font-weight: bold; font-size: 22px; color: white; text-shadow: 1px 1px 3px black; }
+        .btn-spin { background-color: #f43f5e; color: white; border: none; padding: 12px 30px; font-size: 18px; font-weight: bold; border-radius: 25px; cursor: pointer; margin-top: 15px; width: 100%; }
+        .btn-spin:disabled { background-color: #64748b; cursor: not-allowed; }
+        .spin-info { margin: 10px 0; font-size: 16px; text-align: center; }
+        .warning-box { background: #ffaa0022; color: #ffaa00; padding: 0.5rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.85rem; text-align: center; }
     </style>
 </head>
 <body>
-
-    <div class="container">
-        <h2>📺 ဗီဒီယိုကြော်ငြာ ကြည့်ရှုရန်</h2>
-        <p>🎁 ရမှတ်များရရှိရန် ဗီဒီယိုကို <strong>၁၅ စက္ကန့်</strong> ပြည့်အောင် ကြည့်ရှုပေးပါ။</p>
-
-        <!-- ဗီဒီယို Container (YouTube Embed) -->
-        <div class="video-wrapper">
-            <!-- 
-               !!! အရေးကြီး !!!
-               အောက်က VIDEO_ID ဆိုတဲ့နေရာမှာ ကိုယ်ပြချင်တဲ့ YouTube Video ID ကို အစားထိုးပါ။
-               ဥပမာ- dQw4w9WgXcQ 
-               autoplay=1 & mute=1 ကို မဖျက်ပါနဲ့ (Browser Policy ကြောင့် အသံဖွင့်ရင် Auto-play အလုပ်မလုပ်ပါ) 
-            -->
-            <iframe 
-                id="adVideo" 
-                src="https://www.youtube.com/embed/VIDEO_ID?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&showinfo=0" 
-                allow="autoplay; encrypted-media" 
-                allowfullscreen>
-            </iframe>
-        </div>
-
-        <div id="status">
-            ⏳ စက္ကန့်တွက်နေသည်... <span class="timer-badge" id="timer">15</span> စက္ကန့်
-        </div>
-        <div class="warning" id="cheatWarning">⚠️ Tab ပြောင်းထားစဉ် Timer ရပ်ထားမည်။ ဗီဒီယိုကို ဆက်ကြည့်ပေးပါ။</div>
+<div class="container">
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('earn')">💰 Earn</button>
+        <button class="tab-btn" onclick="switchTab('spin')">🎰 Lucky Spin</button>
     </div>
 
-    <script>
-        // URL မှ User ID ဖတ်ယူခြင်း
-        const urlParams = new URLSearchParams(window.location.search);
-        const userId = urlParams.get('user_id');
+    <!-- Earn Tab -->
+    <div id="tab-earn" class="tab-content active">
+        <div class="status-badge" id="statusBadge">✓ Production Mode</div>
+        <div class="warning-box" id="warningBox" style="display:none;">⚠️ Please open inside Telegram Mini App for full functionality.</div>
+        <h2>Watch & Earn</h2>
+        <div class="debug-info">🆔 User ID: <strong id="displayUserId">Checking...</strong></div>
+        <div class="balance-box">💰 USDT Balance: <span id="balance">0.00000</span></div>
+        <div class="withdraw-box">(Minimum Auto-Withdraw: 0.10000 USDT)</div>
+        <div class="limit-box">📺 Today's Views: <span id="viewCount">0</span> / 300</div>
+        <button id="adBtn" class="btn-ad" onclick="showRewardAd()">WATCH VIDEO (TASK 1)</button>
 
-        let timeLeft = 15;
-        let timerInterval = null;
-        let rewardClaimed = false; // Reward ကို ၁ ကြိမ်ပဲ ပို့ဖို့ ထိန်းချုပ်ခြင်း
+        <div class="withdrawal-console">
+            <h3>Withdrawal Console</h3>
+            <p class="sub-label">WITHDRAWABLE TON</p>
+            <h2 id="withdrawableTon">0.000000 TON</h2>
+            <div class="form-group"><label>AMOUNT (TON)</label><input type="number" id="withdrawAmount" step="0.01" placeholder="0.25"></div>
+            <div class="form-group"><label>TON ADDRESS</label><input type="text" id="tonAddress" placeholder="UQ..."></div>
+            <div class="form-group"><label>MEMO (OPTIONAL)</label><input type="text" id="withdrawMemo" placeholder="Order #123"></div>
+            <button id="withdrawBtn" class="btn-withdraw" onclick="requestWithdraw()">Request Withdrawal</button>
+        </div>
+        <div class="referral-console">
+            <h3>REFERRAL PROGRAM</h3>
+            <p>One-time: $0.01 | Lifetime share: 5%</p>
+            <label>YOUR REFERRAL LINK</label>
+            <input type="text" id="refLink" readonly class="referral-link">
+            <button class="btn-copy" onclick="copyRefLink()">COPY LINK</button>
+        </div>
+    </div>
 
-        const timerElement = document.getElementById('timer');
-        const statusElement = document.getElementById('status');
-        const warningElement = document.getElementById('cheatWarning');
+    <!-- Lucky Spin Tab -->
+    <div id="tab-spin" class="tab-content">
+        <div class="warning-box" id="warningBoxSpin" style="display:none;">⚠️ Please open inside Telegram Mini App for full functionality.</div>
+        <h2>🎯 Lucky Spin Wheel</h2>
+        <div class="spin-info">⭐ Your Points: <span id="spinBalance">0</span></div>
+        <div class="spin-info">🎁 Free Spins Left: <span id="freeSpins">2</span></div>
+        <div class="wheel-box">
+            <div class="pointer"></div>
+            <div class="wheel" id="wheel">
+                <span class="prize-label" style="--rotate: 30deg;">50</span>
+                <span class="prize-label" style="--rotate: 90deg;">10</span>
+                <span class="prize-label" style="--rotate: 150deg;">100</span>
+                <span class="prize-label" style="--rotate: 210deg;">20</span>
+                <span class="prize-label" style="--rotate: 270deg;">5</span>
+                <span class="prize-label" style="--rotate: 330deg;">250</span>
+            </div>
+        </div>
+        <button class="btn-spin" id="spinBtn" onclick="handleSpin()">START SPIN</button>
+    </div>
+</div>
 
-        // --- Timer Logic ---
-        function startTimer() {
-            if (timeLeft <= 0 || rewardClaimed) return;
-            
-            warningElement.style.display = 'none'; // Warning ဖျောက်
-            
-            timerInterval = setInterval(() => {
-                timeLeft--;
-                timerElement.textContent = timeLeft;
-
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    timerInterval = null;
-                    claimReward();
-                }
-            }, 1000);
+<script>
+    // ===== Authentication Guard (Login မဝင်ရင် login page ပြန်ပို့) =====
+    (function() {
+        if (!localStorage.getItem('userEmail') || !localStorage.getItem('userPassword')) {
+            window.location.href = 'login.html';  // သင့် login page ဖိုင်နာမည်
         }
+    })();
 
-        function pauseTimer() {
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-                warningElement.style.display = 'block'; // Warning ပြ
-            }
+    // Telegram WebApp safe init
+    try {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+    } catch(e) {
+        console.warn("WebApp not available, running in browser mode.");
+    }
+
+    // Config
+    const BLOCK_ID = "";
+    const SPIN_BLOCK_ID = "";
+    const REWARD_AMOUNT = 0.00033;
+    const DAILY_LIMIT = 300;
+    const MIN_WITHDRAW = 0.10000;
+    const TON_USDT_RATE = 1.67;
+    const BOT_USERNAME = "HeinChit_bot";
+
+    // Prize points (clockwise from 0 = red)
+    const prizePoints = [50, 10, 100, 20, 5, 250];
+
+    // ---------- User ID ----------
+    let currentUserId = "anonymous";
+    let isRealUser = false;
+    try {
+        const user = window.Telegram.WebApp.initDataUnsafe?.user;
+        if (user) {
+            currentUserId = user.id.toString();
+            isRealUser = true;
         }
+    } catch(e) {}
 
-        // --- Anti-Cheat: Visibility Change Detection ---
-        document.addEventListener('visibilitychange', () => {
-            // Reward ရပြီးသားဆိုရင် ဘာမှမလုပ်ပါ
-            if (rewardClaimed || timeLeft <= 0) return;
+    document.getElementById('displayUserId').innerText = currentUserId;
+    const warningBoxes = [document.getElementById('warningBox'), document.getElementById('warningBoxSpin')];
+    if (!isRealUser) {
+        document.getElementById('statusBadge').innerText = "⚠️ Not in Telegram";
+        document.getElementById('statusBadge').style.color = "#ffaa00";
+        warningBoxes.forEach(b => b.style.display = 'block');
+    } else {
+        warningBoxes.forEach(b => b.style.display = 'none');
+    }
 
-            if (document.hidden) {
-                // User က Tab ပြောင်းသွားရင် Timer ရပ်
-                pauseTimer();
+    // ---------- LocalStorage ----------
+    const BALANCE_KEY = `earn_balance_${currentUserId}`;
+    const VIEWS_KEY = `earn_views_${currentUserId}`;
+    const DATE_KEY = `earn_date_${currentUserId}`;
+    const SPIN_KEY = `spin_points_${currentUserId}`;
+    const SPIN_FREE_KEY = `spin_free_${currentUserId}`;
+    const SPIN_DATE_KEY = `spin_date_${currentUserId}`;
+
+    let userBalance = parseFloat(localStorage.getItem(BALANCE_KEY)) || 0;
+    let userViews = parseInt(localStorage.getItem(VIEWS_KEY)) || 0;
+    let spinPoints = parseInt(localStorage.getItem(SPIN_KEY)) || 0;
+    let storedFree = parseInt(localStorage.getItem(SPIN_FREE_KEY));
+    let freeSpinsLeft = isNaN(storedFree) ? 2 : storedFree;
+    let lastResetDateEarn = localStorage.getItem(DATE_KEY) || "";
+    let lastResetDateSpin = localStorage.getItem(SPIN_DATE_KEY) || "";
+
+    const todayStr = new Date().toDateString();
+    if (lastResetDateEarn !== todayStr) {
+        userViews = 0;
+        localStorage.setItem(VIEWS_KEY, 0);
+        localStorage.setItem(DATE_KEY, todayStr);
+    }
+    if (lastResetDateSpin !== todayStr) {
+        freeSpinsLeft = 2;
+        localStorage.setItem(SPIN_FREE_KEY, 2);
+        localStorage.setItem(SPIN_DATE_KEY, todayStr);
+    }
+
+    // ---------- Tab switching ----------
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        if (tab === 'earn') {
+            document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
+            document.getElementById('tab-earn').classList.add('active');
+        } else {
+            document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
+            document.getElementById('tab-spin').classList.add('active');
+        }
+    }
+
+    // ---------- Earn UI ----------
+    function updateEarnUI() {
+        document.getElementById('balance').innerText = userBalance.toFixed(5);
+        document.getElementById('viewCount').innerText = userViews;
+        const tonAmount = userBalance / TON_USDT_RATE;
+        document.getElementById('withdrawableTon').innerText = tonAmount.toFixed(6) + " TON";
+        const adBtn = document.getElementById('adBtn');
+        if (userViews >= DAILY_LIMIT) {
+            adBtn.disabled = true;
+            adBtn.innerText = "DAILY LIMIT REACHED (300/300)";
+        } else {
+            adBtn.disabled = false;
+            adBtn.innerText = "WATCH VIDEO (TASK 1)";
+        }
+    }
+
+    function showRewardAd() {
+        if (userViews >= DAILY_LIMIT) {
+            alert("Daily limit reached (300/300). Please watch again tomorrow.");
+            return;
+        }
+        if (!isRealUser) {
+            alert("Demo mode: Adding reward without ad.");
+            userBalance += REWARD_AMOUNT;
+            userViews++;
+            localStorage.setItem(BALANCE_KEY, userBalance);
+            localStorage.setItem(VIEWS_KEY, userViews);
+            checkAutoWithdraw();
+            updateEarnUI();
+            return;
+        }
+        const adBtn = document.getElementById('adBtn');
+        adBtn.disabled = true;
+        adBtn.innerText = "Loading ad...";
+        window.Adsgram.init({ blockId: BLOCK_ID }).show()
+        .then(r => {
+            if (r.done) {
+                userBalance += REWARD_AMOUNT;
+                userViews++;
+                localStorage.setItem(BALANCE_KEY, userBalance);
+                localStorage.setItem(VIEWS_KEY, userViews);
+                checkAutoWithdraw();
             } else {
-                // User ပြန်ရောက်လာရင် Timer ပြန်စ
-                startTimer();
+                alert("Didn't watch the ad fully.");
             }
-        });
+            updateEarnUI();
+        }).catch(() => updateEarnUI());
+    }
 
-        // --- Reward ရယူခြင်းနှင့် Backend သို့ပို့ခြင်း ---
-        function claimReward() {
-            if (rewardClaimed) return; // ၁ ကြိမ်ထက်ပိုမပို့မိအောင်
-            rewardClaimed = true;
+    let isWithdrawing = false; 
 
-            statusElement.innerHTML = "🔄 ရမှတ်များကို အော်တို ထည့်သွင်းပေးနေပါသည်...";
+    async function requestWithdraw() {
+        if (isWithdrawing) return;
+        isWithdrawing = true;
 
-            if (!userId) {
-                statusElement.innerHTML = "❌ အမှားအယွင်းရှိနေပါသည်။ (User ID မရှိပါ)";
+        const withdrawBtn = document.getElementById('withdrawBtn');
+        withdrawBtn.disabled = true;
+        withdrawBtn.innerText = "Processing...";
+
+        const amountTon = parseFloat(document.getElementById('withdrawAmount').value);
+        const tonAddress = document.getElementById('tonAddress').value.trim();
+        const memo = document.getElementById('withdrawMemo').value.trim();
+        const availableTon = userBalance / TON_USDT_RATE;
+
+        if (!amountTon || amountTon <= 0) {
+            alert("Enter a valid amount.");
+            isWithdrawing = false;
+            withdrawBtn.disabled = false;
+            withdrawBtn.innerText = "Request Withdrawal";
+            return;
+        }
+        if (amountTon * TON_USDT_RATE < MIN_WITHDRAW) {
+            alert(`Minimum withdrawal is $${MIN_WITHDRAW} USDT.`);
+            isWithdrawing = false;
+            withdrawBtn.disabled = false;
+            withdrawBtn.innerText = "Request Withdrawal";
+            return;
+        }
+        if (amountTon > availableTon) {
+            alert("Insufficient balance.");
+            isWithdrawing = false;
+            withdrawBtn.disabled = false;
+            withdrawBtn.innerText = "Request Withdrawal";
+            return;
+        }
+        if (!tonAddress) {
+            alert("Enter TON address.");
+            isWithdrawing = false;
+            withdrawBtn.disabled = false;
+            withdrawBtn.innerText = "Request Withdrawal";
+            return;
+        }
+        if (!isRealUser) {
+            alert("Demo mode: Withdrawal not available.");
+            isWithdrawing = false;
+            withdrawBtn.disabled = false;
+            withdrawBtn.innerText = "Request Withdrawal";
+            return;
+        }
+
+        try {
+            const res = await fetch("https://task-bot-azure.vercel.app/api/withdraw", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: currentUserId,
+                    amount: amountTon,
+                    address: tonAddress,
+                    memo: memo || "None"
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                userBalance -= amountTon * TON_USDT_RATE;
+                localStorage.setItem(BALANCE_KEY, userBalance);
+                updateEarnUI();
+                alert(`Withdrawal request sent!\n${amountTon} TON to ${tonAddress}`);
+            } else {
+                alert("Server connection failed. Try again.");
+            }
+        } catch (e) {
+            alert("Unable to connect to server.");
+        } finally {
+            isWithdrawing = false;
+            withdrawBtn.disabled = false;
+            withdrawBtn.innerText = "Request Withdrawal";
+        }
+    }
+
+    function generateRefLink() {
+        const ref = document.getElementById('refLink');
+        ref.value = isRealUser ? `https://t.me/${BOT_USERNAME}?start=ref_${currentUserId}` : "Please open in Telegram Mini App";
+    }
+
+    function copyRefLink() {
+        const ref = document.getElementById("refLink");
+        ref.select();
+        document.execCommand("copy");
+        alert("Referral link copied.");
+    }
+
+    // ---------- Spin UI ----------
+    let isSpinning = false;
+    let currentRotation = 0;
+
+    function updateSpinUI() {
+        document.getElementById('spinBalance').innerText = spinPoints;
+        document.getElementById('freeSpins').innerText = freeSpinsLeft;
+        document.getElementById('spinBtn').disabled = isSpinning;
+    }
+
+    function showAdForSpin() {
+        return new Promise((resolve, reject) => {
+            if (!isRealUser) {
+                alert("Demo mode: Spinning without ad.");
+                resolve();
                 return;
             }
+            if (typeof window.Adsgram === 'undefined') {
+                alert("Ad system unavailable, spinning free.");
+                resolve();
+                return;
+            }
+            window.Adsgram.init({ blockId: SPIN_BLOCK_ID }).show()
+            .then(r => {
+                if (r.done) resolve();
+                else reject("Ad not completed");
+            }).catch(() => reject("Ad error"));
+        });
+    }
 
-            // ⚠️ Backend Server URL ကို ကိုယ့် Endpoint နဲ့ အစားထိုးပါ။ (ဥပမာ /earn)
-            const backendURL = "https://test-hein-bot.onrender.com/earn"; 
-            
-            fetch(backendURL, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json' 
-                },
-                body: JSON.stringify({ 
-                    user_id: userId, 
-                    points: 10 
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data.success) {
-                    statusElement.innerHTML = "✅ ဂုဏ်ယူပါတယ်! ရမှတ် (၁၀) မှတ် အော်တို ဝင်သွားပါပြီ။";
-                    statusElement.style.color = "#4caf50";
-                } else {
-                    statusElement.innerHTML = "❌ ရမှတ်ထည့်သွင်းခြင်း မအောင်မြင်ပါ။";
-                    statusElement.style.color = "#ff4444";
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                statusElement.innerHTML = "❌ Server အခက်အခဲရှိနေပါသည်။ (အင်တာနက်စစ်ဆေးပါ)";
-                statusElement.style.color = "#ff4444";
-            });
-        }
-
-        // --- စတင်ချိန်တွင် Timer စတင်ပါ ---
-        // User က ID ပါမလာရင် သတိပေးမယ်
-        if(!userId) {
-            statusElement.innerHTML = "⚠️ User ID မပါဝင်ပါ။ Link မှားနေပါသလား။";
-            statusElement.style.color = "#ff6666";
+    async function handleSpin() {
+        if (isSpinning) return;
+        if (freeSpinsLeft > 0) {
+            freeSpinsLeft--;
+            localStorage.setItem(SPIN_FREE_KEY, freeSpinsLeft);
+            updateSpinUI();
+            startWheelSpin();
         } else {
-            startTimer();
+            try {
+                await showAdForSpin();
+                startWheelSpin();
+            } catch(e) {
+                alert("You need to watch the ad to spin.");
+            }
         }
+    }
 
-        // Page ပေါ်မှာ Mouse မလှုပ်ရင် / Inactive ဖြစ်ရင် Timer ရပ်တဲ့ စနစ် (Optional၊ လက်ရှိတော့ Visibility ပဲသုံးထားပါတယ်)
-    </script>
+    function startWheelSpin() {
+        console.log("Starting wheel spin...");
+        isSpinning = true;
+        updateSpinUI();
+        const randomExtra = Math.floor(Math.random() * 360);
+        currentRotation += 1800 + randomExtra;
+        const wheel = document.getElementById('wheel');
+        wheel.style.transform = `rotate(${currentRotation}deg)`;
+
+        setTimeout(() => {
+            isSpinning = false;
+            // Determine which segment is under pointer (top = 0 deg)
+            const finalAngle = currentRotation % 360;
+            const segmentIndex = Math.floor(((360 - finalAngle) % 360) / 60);
+            const pointsWon = prizePoints[segmentIndex];
+            spinPoints += pointsWon;
+            localStorage.setItem(SPIN_KEY, spinPoints);
+            updateSpinUI();
+
+            // Auto‑convert 10,000 points to 0.1 USDT
+            while (spinPoints >= 10000) {
+                spinPoints -= 10000;
+                userBalance += 0.1;
+                localStorage.setItem(SPIN_KEY, spinPoints);
+                localStorage.setItem(BALANCE_KEY, userBalance);
+                updateEarnUI();
+                alert("✨ 10,000 Points converted to 0.1 USDT!");
+            }
+
+            alert(`🎉 You won ${pointsWon} Points!`);
+        }, 4000);
+    }
+
+    // ---------- Startup ----------
+    generateRefLink();
+    updateEarnUI();
+    updateSpinUI();
+</script>
 </body>
-</html>
-                
+    </html>
